@@ -43,6 +43,14 @@ window.FREEDAY_API = "https://script.google.com/macros/s/xxxxxxxx/exec";
 3. repo 的「Settings → Pages」，Source 選 `Deploy from a branch`，Branch 選 `main` / `/ (root)`，存檔。
 4. 約一分鐘後網址會是 `https://<你的帳號>.github.io/camping-days/`。
 
+### 4. 營位規格（帳數、營位費）
+
+1. 試算表「檔案 → 匯入 → 上傳」`sites.csv`，選「插入新工作表」，工作表改名 `sites`。
+2. 「檔案 → 共用 → 發布到網路」，左邊**只選 `sites` 工作表**（不要選整份文件，否則 `people` 也會公開），右邊選「逗號分隔值 (.csv)」，發布。
+3. 把網址貼到 `config.js` 的 `FREEDAY_SITES_CSV`。
+
+之後改價格或帳數直接改試算表 `sites` 工作表即可，約 5 分鐘內反映到網頁，不用改程式。欄位依標題名稱對應：`營位名稱(官網)`、`帳數`、`營位費`、`營位大小(cm)`、`型式`、`備註`；營位名稱要跟小路官網訂位表上的寫法一致才對得起來。
+
 ## 之後要改 Apps Script
 
 修改程式碼後要「部署 → 管理部署作業 → 編輯（鉛筆）→ 版本選『新版本』→ 部署」，網址才會維持不變並套用新程式。直接「新增部署作業」會產生新網址。

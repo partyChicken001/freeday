@@ -117,7 +117,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 }
 
 /* 營位詳情 */
-dialog.camp { width: min(520px, calc(100vw - 32px)); max-height: min(80vh, 640px); padding: 0; border: 1px solid var(--line); border-radius: 18px;
+dialog.camp { width: min(620px, calc(100vw - 32px)); max-height: min(80vh, 640px); padding: 0; border: 1px solid var(--line); border-radius: 18px;
   background: var(--sheet); color: var(--ink); box-shadow: 0 24px 60px -20px rgba(0,0,0,.45); }
 dialog.camp::backdrop { background: rgba(10, 20, 15, .45); }
 .camp-in { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -128,8 +128,14 @@ dialog.camp::backdrop { background: rgba(10, 20, 15, .45); }
 .camp-sum b.zero { color: var(--danger); }
 .camp-group { display: flex; flex-direction: column; gap: 6px; }
 .camp-group h4 { margin: 0; font-size: .78rem; letter-spacing: .1em; color: var(--muted); }
-.camp-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.camp-list li { border: 1.5px solid var(--accent); color: var(--ink); border-radius: 8px; padding: 3px 9px; font-size: .88rem; }
+.camp-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.camp-list li { border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 11px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.camp-list .nm { font-weight: 700; font-size: .92rem; }
+.camp-list .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .85rem; align-items: baseline; }
+.camp-list .tents { color: var(--accent); font-weight: 700; }
+.camp-list .fee { font-family: var(--f-num); font-weight: 600; }
+.camp-list .fee small { font-family: var(--f-body); color: var(--muted); font-weight: 500; }
+.camp-list .sub { font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
 .camp-warn { font-size: .85rem; padding: 8px 12px; border-radius: 10px; background: rgba(var(--heat-rgb), .1); margin: 0; }
 .camp-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: .8rem; color: var(--muted); }
 .camp-foot a { color: var(--accent); font-weight: 700; }
@@ -403,6 +409,57 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
 
   // ---------- 小路露營區營位（由 Apps Script 代抓官網，快取 20 分鐘） ----------
   const CAMP_URL = "https://www.nalu.com.tw/food_detail.asp?cdate=";
+
+  // 營位規格：試算表 sites 工作表發布成 CSV，欄位依標題名稱對應
+  const SITES_CSV = (window.FREEDAY_SITES_CSV || "").trim();
+  let sites = {}; // 正規化後的官網營位名稱 -> {tents, fee, size, type, note}
+  const siteKey = s => String(s || "").normalize("NFKC").replace(/\s+/g, "").replace(/（/g, "(").replace(/）/g, ")");
+  function parseCsv(text) {
+    const rows = []; let row = [], cell = "", q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) {
+        if (ch === '"' && text[i+1] === '"') { cell += '"'; i++; }
+        else if (ch === '"') q = false;
+        else cell += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === ",") { row.push(cell); cell = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i+1] === "\n") i++;
+        row.push(cell); rows.push(row); row = []; cell = "";
+      } else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows;
+  }
+  async function loadSites() {
+    if (!SITES_CSV) return;
+    try {
+      const res = await fetch(SITES_CSV);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const [head, ...rows] = parseCsv(await res.text());
+      const col = label => head.findIndex(h => h.trim().startsWith(label));
+      const c = { name: col("營位名稱"), tents: col("帳數"), fee: col("營位費"), size: col("營位大小"), type: col("型式"), note: col("備註") };
+      const next = {};
+      for (const r of rows) {
+        const name = (r[c.name] || "").trim();
+        if (!name) continue;
+        const get = k => c[k] >= 0 ? (r[c[k]] || "").trim() : "";
+        next[siteKey(name)] = { tents: get("tents"), fee: get("fee"), size: get("size"), type: get("type"), note: get("note") };
+      }
+      sites = next;
+    } catch (e) { /* 讀不到規格就只顯示營位名稱 */ }
+  }
+  function siteItem(name) {
+    const s = sites[siteKey(name)];
+    if (!s) return `<li><span class="nm">${esc(name)}</span></li>`;
+    const fee = Number(String(s.fee).replace(/[^\d.]/g, ""));
+    return `<li><span class="nm">${esc(name)}</span>
+      <span class="meta">${s.tents ? `<span class="tents">${esc(s.tents)} 帳</span>` : ""}${s.fee ? `<span class="fee">營位費 ${fee ? "$" + fee.toLocaleString("en-US") : esc(s.fee)}<small>／帳</small></span>` : ""}</span>
+      ${s.size || s.type ? `<span class="sub">${[s.size, s.type].filter(Boolean).map(esc).join("・")}</span>` : ""}
+      ${s.note ? `<span class="sub">${esc(s.note)}</span>` : ""}</li>`;
+  }
+  loadSites();
   const CAMP_TTL = 10 * 60 * 1000;
   const camp = {}; // "2026-12" -> {days, at, loading}
   const ymOf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, "0")}`;
@@ -446,7 +503,7 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
       ${cd.unassigned ? `<p class="camp-warn">另有 ${cd.unassigned} 筆訂位還沒分配營位，會佔掉下面其中 ${Math.min(cd.unassigned, cd.free.length)} 個，所以可訂數比空著的少。</p>` : ""}
       ${cd.partial ? `<p class="camp-warn">露營區的匯款訂位資料暫時抓不到，這天的空位可能比實際多。</p>` : ""}
       ${cd.free.length
-        ? [...groups].map(([g, names]) => `<div class="camp-group"><h4>${esc(g)}</h4><ul class="camp-list">${names.map(n => `<li>${esc(n)}</li>`).join("")}</ul></div>`).join("")
+        ? [...groups].map(([g, names]) => `<div class="camp-group"><h4>${esc(g)}</h4><ul class="camp-list">${names.map(siteItem).join("")}</ul></div>`).join("")
         : `<p class="empty">這天沒有空的營位了。</p>`}
       <div class="camp-foot">
         <span>資料更新於 ${new Date(cd.at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}・僅供參考，實際以小路客服為準</span>
