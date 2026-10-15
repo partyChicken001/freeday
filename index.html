@@ -74,22 +74,34 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .dow { text-align: center; font-size: .8rem; font-weight: 700; color: var(--muted); letter-spacing: .1em; padding-bottom: 2px; }
 .dow.we { color: var(--danger); }
-.day { position: relative; aspect-ratio: 1 / .9; max-width: 100%; border-radius: 12px; border: 1.5px solid var(--line); background: var(--heat-0);
-  padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; color: var(--ink); transition: transform .08s; }
-.day:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--accent); }
+/* 每格：.pick 鋪滿整格負責勾選，文字不吃點擊，.info 浮在上面開詳情 */
+.day { position: relative; aspect-ratio: 1 / 1.05; max-width: 100%; border-radius: 12px; border: 1.5px solid var(--line); background: var(--heat-0);
+  padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between; gap: 2px; color: var(--ink); transition: transform .08s; }
+.day > span { pointer-events: none; position: relative; }
+.day .pick { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+.day .pick:disabled { cursor: default; }
+.day:hover:not(.past):not(.full) { transform: translateY(-1px); border-color: var(--accent); }
 .day .n { font-family: var(--f-num); font-weight: 600; font-size: clamp(.9rem, 2.6vw, 1.35rem); line-height: 1; }
 .day.we .n { color: var(--danger); }
 .day .c { font-size: clamp(.65rem, 1.8vw, .8rem); font-weight: 700; align-self: flex-end; font-variant-numeric: tabular-nums; }
 .day.hot .n, .day.hot .c { color: #fff; }
+.day .info { position: relative; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+  font-size: clamp(.62rem, 1.6vw, .74rem); line-height: 1.2; padding: 3px 7px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--sheet); color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.day .info:hover { border-color: var(--accent); }
+.day .info .lg { font-weight: 500; color: var(--muted); }
+.day .info.zero { color: var(--danger); }
+.day .info.wait { color: var(--muted); font-weight: 500; border-style: dashed; }
 .day.today { border-color: var(--ink); }
 .day.blank { visibility: hidden; }
-.day:disabled { opacity: .35; cursor: default; }
-.day.full { opacity: 1; cursor: not-allowed; border-style: dashed; color: var(--muted);
+.day.past { opacity: .35; }
+.day.full { border-style: dashed; color: var(--muted);
   background: repeating-linear-gradient(135deg, var(--heat-0) 0 6px, var(--line) 6px 8px) !important; }
+.day.full .pick { cursor: not-allowed; }
 .day.full .n { color: var(--muted); text-decoration: line-through; }
 .day.full .c { color: var(--danger); }
 .day.mine { border-color: var(--mine); border-width: 3px; }
-.day.mine::after { content: "✓"; position: absolute; top: 4px; right: 7px; width: 20px; height: 20px; border-radius: 50%;
+.day.mine::after { pointer-events: none; content: "✓"; position: absolute; top: 4px; right: 7px; width: 20px; height: 20px; border-radius: 50%;
   background: var(--mine); color: #1b1300; font-size: .75rem; font-weight: 900; display: grid; place-items: center; }
 .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .8rem; color: var(--muted); align-items: center; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -98,9 +110,29 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 520px) {
   .sheet { padding: 12px; }
   .grid { gap: 3px; }
-  .day { padding: 4px 5px; border-radius: 8px; aspect-ratio: 1 / 1.05; }
+  .day { padding: 4px 4px; border-radius: 8px; aspect-ratio: auto; min-height: 76px; }
   .day.mine::after { width: 14px; height: 14px; font-size: .6rem; top: 2px; right: 3px; }
+  .day .info { padding: 2px 5px; }
+  .day .info .lg { display: none; }
 }
+
+/* 營位詳情 */
+dialog.camp { width: min(520px, calc(100vw - 32px)); max-height: min(80vh, 640px); padding: 0; border: 1px solid var(--line); border-radius: 18px;
+  background: var(--sheet); color: var(--ink); box-shadow: 0 24px 60px -20px rgba(0,0,0,.45); }
+dialog.camp::backdrop { background: rgba(10, 20, 15, .45); }
+.camp-in { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+.camp-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.camp-head h3 { margin: 0; font-family: var(--f-display); font-size: 1.35rem; }
+.camp-sum { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: .9rem; color: var(--muted); }
+.camp-sum b { font-family: var(--f-num); font-size: 1.6rem; color: var(--accent); margin-right: 2px; }
+.camp-sum b.zero { color: var(--danger); }
+.camp-group { display: flex; flex-direction: column; gap: 6px; }
+.camp-group h4 { margin: 0; font-size: .78rem; letter-spacing: .1em; color: var(--muted); }
+.camp-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.camp-list li { border: 1.5px solid var(--accent); color: var(--ink); border-radius: 8px; padding: 3px 9px; font-size: .88rem; }
+.camp-warn { font-size: .85rem; padding: 8px 12px; border-radius: 10px; background: rgba(var(--heat-rgb), .1); margin: 0; }
+.camp-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: .8rem; color: var(--muted); }
+.camp-foot a { color: var(--accent); font-weight: 700; }
 
 /* stats */
 .stats { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -175,6 +207,8 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
     </div>
   </section>
 </div>
+
+<dialog class="camp" id="campDlg" aria-label="空閒營位"><div class="camp-in" id="campBody"></div></dialog>
 
 <script src="config.js"></script>
 <script>
@@ -327,21 +361,32 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
     const first = new Date(y, m, 1).getDay();
     const days = new Date(y, m+1, 0).getDate();
     for (let i = 0; i < first; i++) h += `<div class="day blank"></div>`;
+    const cm = camp[ymOf(view)];
+    ensureCamp(ymOf(view));
     for (let d = 1; d <= days; d++) {
       const dt = new Date(y, m, d), key = iso(dt), past = key < todayIso, full = FULL.has(key);
       const n = (c.get(key) || []).length;
       const a = n ? 0.18 + 0.82 * (n / max) : 0;
       const mine = !full && myDates.has(key);
-      const cls = ["day", dt.getDay()===0||dt.getDay()===6 ? "we" : "", key===todayIso?"today":"", mine?"mine":"", full?"full":"", a > .55 ? "hot" : ""].join(" ");
+      const cls = ["day", dt.getDay()===0||dt.getDay()===6 ? "we" : "", key===todayIso?"today":"", mine?"mine":"", full?"full":"", past?"past":"", a > .55 ? "hot" : ""].join(" ");
       const style = n ? `style="background:rgba(var(--heat-rgb),${a.toFixed(2)})"` : "";
-      const label = full ? `${m+1}月${d}日，營地已訂滿，不能選` : `${m+1}月${d}日，${n} 人有空${mine ? "，你已勾選" : ""}`;
-      h += `<button class="${cls}" data-d="${key}" ${style} ${past||full?"disabled":""} aria-pressed="${mine}" aria-label="${label}">
-        <span class="n">${d}</span><span class="c">${full ? "已訂滿" : n ? n + (total ? "/" + total : "") : ""}</span></button>`;
+      const label = full ? `${m+1}月${d}日，已訂滿，不能選` : `${m+1}月${d}日，${n} 人有空${mine ? "，你已勾選" : ""}`;
+      let info = "";
+      if (!past) {
+        const cd = cm && cm.days && cm.days[key];
+        if (cd) info = `<button class="info ${cd.remaining ? "" : "zero"}" data-info="${key}" aria-label="${m+1}月${d}日剩 ${cd.remaining} 個營位，看空閒營位">剩 ${cd.remaining}<span class="lg">位・詳情</span></button>`;
+        else if (!cm || cm.loading) info = `<span class="info wait">營位…</span>`;
+      }
+      h += `<div class="${cls}" ${style}>
+        <button class="pick" data-d="${key}" ${past||full?"disabled":""} aria-pressed="${mine}" aria-label="${label}"></button>
+        <span class="n">${d}</span><span class="c">${full ? "已訂滿" : n ? n + (total ? "/" + total : "") : ""}</span>${info}</div>`;
     }
     $("grid").innerHTML = h;
   }
   $("grid").addEventListener("click", e => {
-    const b = e.target.closest("button.day");
+    const inf = e.target.closest("button.info");
+    if (inf) { openCamp(inf.dataset.info); return; }
+    const b = e.target.closest("button.pick");
     if (!b || b.disabled || mode === "noconfig") return;
     if (!me) { const i = $("nameInput"); if (i) { i.focus(); i.placeholder = "先輸入名字再勾日期"; } return; }
     if (readOnly) return;
@@ -351,6 +396,62 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
   });
   $("prev").onclick = () => { view = new Date(view.getFullYear(), view.getMonth()-1, 1); renderCal(); };
   $("next").onclick = () => { view = new Date(view.getFullYear(), view.getMonth()+1, 1); renderCal(); };
+
+  // ---------- 小路露營區營位（由 Apps Script 代抓官網，快取 20 分鐘） ----------
+  const CAMP_URL = "https://www.nalu.com.tw/food_detail.asp?cdate=";
+  const CAMP_TTL = 10 * 60 * 1000;
+  const camp = {}; // "2026-12" -> {days, at, loading}
+  const ymOf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, "0")}`;
+  async function ensureCamp(ym, force) {
+    if (mode === "noconfig") return;
+    const cur = camp[ym];
+    if (cur && (cur.loading || (!force && Date.now() - cur.at < CAMP_TTL))) return;
+    camp[ym] = { days: cur ? cur.days : null, at: cur ? cur.at : 0, loading: true };
+    try {
+      const res = await fetch(`${API}${API.includes("?") ? "&" : "?"}camp=${ym}`);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      camp[ym] = { days: json.days || {}, at: Date.now(), loading: false };
+    } catch (e) {
+      camp[ym] = { days: cur ? cur.days : {}, at: Date.now() - CAMP_TTL + 60000, loading: false }; // 一分鐘後再試
+    }
+    if (ymOf(view) === ym) renderCal();
+  }
+
+  function openCamp(key) {
+    const cd = (camp[key.slice(0, 7)] || {}).days?.[key];
+    if (!cd) return;
+    const groups = new Map();
+    for (const name of cd.free) {
+      const g = (name.match(/^\(?([^)]*)\)/) || [, "其他"])[1] || "其他";
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(name);
+    }
+    const who = (counts().get(key) || []);
+    const d = fromIso(key);
+    $("campBody").innerHTML = `
+      <div class="camp-head">
+        <h3>${d.getMonth()+1}/${d.getDate()}（${WD[d.getDay()]}）空閒營位</h3>
+        <button id="campClose" aria-label="關閉">關閉</button>
+      </div>
+      <div class="camp-sum">
+        <span><b class="${cd.remaining ? "" : "zero"}">${cd.remaining}</b>個可訂</span>
+        <span>空著 ${cd.free.length} / 全場 ${cd.total} 個營位</span>
+        <span>我們 ${who.length} 人有空${who.length ? "：" + who.map(esc).join("、") : ""}</span>
+      </div>
+      ${cd.unassigned ? `<p class="camp-warn">另有 ${cd.unassigned} 筆訂位還沒分配營位，會佔掉下面其中 ${Math.min(cd.unassigned, cd.free.length)} 個，所以可訂數比空著的少。</p>` : ""}
+      ${cd.partial ? `<p class="camp-warn">露營區的匯款訂位資料暫時抓不到，這天的空位可能比實際多。</p>` : ""}
+      ${cd.free.length
+        ? [...groups].map(([g, names]) => `<div class="camp-group"><h4>${esc(g)}</h4><ul class="camp-list">${names.map(n => `<li>${esc(n)}</li>`).join("")}</ul></div>`).join("")
+        : `<p class="empty">這天沒有空的營位了。</p>`}
+      <div class="camp-foot">
+        <span>資料更新於 ${new Date(cd.at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}・僅供參考，實際以小路客服為準</span>
+        <a href="${CAMP_URL}${key.replace(/-/g, "/")}" target="_blank" rel="noopener">看官網訂位表 ↗</a>
+      </div>`;
+    $("campClose").onclick = () => $("campDlg").close();
+    $("campDlg").showModal();
+  }
+  $("campDlg").addEventListener("click", e => { if (e.target === $("campDlg")) $("campDlg").close(); });
 
   // ---------- stats ----------
   function fmt(key) { const d = fromIso(key); return `${d.getMonth()+1}/${d.getDate()}<em>（${WD[d.getDay()]}）</em>`; }
