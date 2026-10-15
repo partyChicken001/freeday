@@ -84,6 +84,10 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .day.today { border-color: var(--ink); }
 .day.blank { visibility: hidden; }
 .day:disabled { opacity: .35; cursor: default; }
+.day.full { opacity: 1; cursor: not-allowed; border-style: dashed; color: var(--muted);
+  background: repeating-linear-gradient(135deg, var(--heat-0) 0 6px, var(--line) 6px 8px) !important; }
+.day.full .n { color: var(--muted); text-decoration: line-through; }
+.day.full .c { color: var(--danger); }
 .day.mine { border-color: var(--mine); border-width: 3px; }
 .day.mine::after { content: "✓"; position: absolute; top: 4px; right: 7px; width: 20px; height: 20px; border-radius: 50%;
   background: var(--mine); color: #1b1300; font-size: .75rem; font-weight: 900; display: grid; place-items: center; }
@@ -154,6 +158,7 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
       <span><i class="ramp"></i>顏色越深＝越多人有空</span>
       <span><i class="sw" style="border-color:var(--mine);border-width:3px"></i>你勾的日子</span>
       <span><i class="sw" style="border-color:var(--ink)"></i>今天</span>
+      <span><i class="sw" style="border-style:dashed;background:repeating-linear-gradient(135deg,var(--heat-0) 0 3px,var(--line) 3px 4px)"></i>已訂滿，不能選</span>
     </div>
   </section>
 
@@ -191,7 +196,9 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
   };
 
   // 月曆最早從 2026 年 12 月開始；過了 12 月就從當月開始
-  const START = new Date(Math.max(new Date(2026, 11, 1), new Date(today.getFullYear(), today.getMonth(), 1)));
+  // 營地已訂滿、不開放勾選的日期
+  const FULL = new Set(["2026-12-25", "2026-12-26", "2026-12-27"]);
+  const START =new Date(Math.max(new Date(2026, 11, 1), new Date(today.getFullYear(), today.getMonth(), 1)));
   let view = new Date(START);
   let people = {};               // id -> {name, dates[]}
   let me = store.get("freeday.me"); // {id, name}
@@ -212,7 +219,7 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
   function counts() {
     const m = new Map();
     for (const [id, p] of allEntries()) for (const d of (p.dates || [])) {
-      if (d < todayIso) continue;
+      if (d < todayIso || FULL.has(d)) continue;
       if (!m.has(d)) m.set(d, []);
       m.get(d).push(p.name);
     }
@@ -321,15 +328,15 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
     const days = new Date(y, m+1, 0).getDate();
     for (let i = 0; i < first; i++) h += `<div class="day blank"></div>`;
     for (let d = 1; d <= days; d++) {
-      const dt = new Date(y, m, d), key = iso(dt), past = key < todayIso;
+      const dt = new Date(y, m, d), key = iso(dt), past = key < todayIso, full = FULL.has(key);
       const n = (c.get(key) || []).length;
       const a = n ? 0.18 + 0.82 * (n / max) : 0;
-      const mine = myDates.has(key);
-      const cls = ["day", dt.getDay()===0||dt.getDay()===6 ? "we" : "", key===todayIso?"today":"", mine?"mine":"", a > .55 ? "hot" : ""].join(" ");
+      const mine = !full && myDates.has(key);
+      const cls = ["day", dt.getDay()===0||dt.getDay()===6 ? "we" : "", key===todayIso?"today":"", mine?"mine":"", full?"full":"", a > .55 ? "hot" : ""].join(" ");
       const style = n ? `style="background:rgba(var(--heat-rgb),${a.toFixed(2)})"` : "";
-      const label = `${m+1}月${d}日，${n} 人有空${mine ? "，你已勾選" : ""}`;
-      h += `<button class="${cls}" data-d="${key}" ${style} ${past?"disabled":""} aria-pressed="${mine}" aria-label="${label}">
-        <span class="n">${d}</span><span class="c">${n ? n + (total ? "/" + total : "") : ""}</span></button>`;
+      const label = full ? `${m+1}月${d}日，營地已訂滿，不能選` : `${m+1}月${d}日，${n} 人有空${mine ? "，你已勾選" : ""}`;
+      h += `<button class="${cls}" data-d="${key}" ${style} ${past||full?"disabled":""} aria-pressed="${mine}" aria-label="${label}">
+        <span class="n">${d}</span><span class="c">${full ? "已訂滿" : n ? n + (total ? "/" + total : "") : ""}</span></button>`;
     }
     $("grid").innerHTML = h;
   }
@@ -354,7 +361,7 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
     $("pcount").textContent = total ? `${total} 人` : "";
     $("chips").innerHTML = total
       ? entries.sort((a, b) => a[1].name.localeCompare(b[1].name, "zh-Hant"))
-          .map(([id, p]) => `<button class="chip ${me && me.id===id ? "me" : ""}" data-id="${esc(id)}">${esc(p.name)}<b>${(p.dates||[]).filter(d => d >= todayIso).length}</b></button>`).join("")
+          .map(([id, p]) => `<button class="chip ${me && me.id===id ? "me" : ""}" data-id="${esc(id)}">${esc(p.name)}<b>${(p.dates||[]).filter(d => d >= todayIso && !FULL.has(d)).length}</b></button>`).join("")
       : `<p class="empty">還沒有人填。在上面輸入名字就能當第一個。</p>`;
 
     if (!rows.length) {
