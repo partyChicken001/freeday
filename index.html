@@ -230,8 +230,11 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
   };
 
   // 月曆最早從 2026 年 12 月開始；過了 12 月就從當月開始
-  // 營地已訂滿、不開放勾選的日期
-  const FULL = new Set(["2026-12-25", "2026-12-26", "2026-12-27"]);
+  // 露營區可訂營位為 0 的日子算已訂滿，不開放勾選；還沒抓到營位資料時不擋
+  const isFull = key => {
+    const cd = camp[key.slice(0, 7)]?.days?.[key];
+    return !!cd && cd.remaining === 0;
+  };
   const START =new Date(Math.max(new Date(2026, 11, 1), new Date(today.getFullYear(), today.getMonth(), 1)));
   let view = new Date(START);
   let people = {};               // id -> {name, dates[]}
@@ -253,7 +256,7 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
   function counts() {
     const m = new Map();
     for (const [id, p] of allEntries()) for (const d of (p.dates || [])) {
-      if (d < todayIso || FULL.has(d)) continue;
+      if (d < todayIso || isFull(d)) continue;
       if (!m.has(d)) m.set(d, []);
       m.get(d).push(p.name);
     }
@@ -364,7 +367,7 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
     const cm = camp[ymOf(view)];
     ensureCamp(ymOf(view));
     for (let d = 1; d <= days; d++) {
-      const dt = new Date(y, m, d), key = iso(dt), past = key < todayIso, full = FULL.has(key);
+      const dt = new Date(y, m, d), key = iso(dt), past = key < todayIso, full = isFull(key);
       const n = (c.get(key) || []).length;
       const a = n ? 0.18 + 0.82 * (n / max) : 0;
       const mine = !full && myDates.has(key);
@@ -376,6 +379,7 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
         const cd = cm && cm.days && cm.days[key];
         if (cd) info = `<button class="info ${cd.remaining ? "" : "zero"}" data-info="${key}" aria-label="${m+1}月${d}日剩 ${cd.remaining} 個營位，看空閒營位">剩 ${cd.remaining}<span class="lg">位・詳情</span></button>`;
         else if (!cm || cm.loading) info = `<span class="info wait">營位…</span>`;
+        else if (cm.error) info = `<span class="info wait" title="暫時讀不到露營區的訂位資料，一分鐘後會再試">營位 ✕</span>`;
       }
       h += `<div class="${cls}" ${style}>
         <button class="pick" data-d="${key}" ${past||full?"disabled":""} aria-pressed="${mine}" aria-label="${label}"></button>
@@ -413,9 +417,9 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
       if (!json.ok) throw new Error(json.error);
       camp[ym] = { days: json.days || {}, at: Date.now(), loading: false };
     } catch (e) {
-      camp[ym] = { days: cur ? cur.days : {}, at: Date.now() - CAMP_TTL + 60000, loading: false }; // 一分鐘後再試
+      camp[ym] = { days: cur ? cur.days : {}, at: Date.now() - CAMP_TTL + 60000, loading: false, error: true }; // 一分鐘後再試
     }
-    if (ymOf(view) === ym) renderCal();
+    render(); // 已訂滿的日子會影響月曆和統計，兩邊都要重畫
   }
 
   function openCamp(key) {
@@ -462,7 +466,7 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
     $("pcount").textContent = total ? `${total} 人` : "";
     $("chips").innerHTML = total
       ? entries.sort((a, b) => a[1].name.localeCompare(b[1].name, "zh-Hant"))
-          .map(([id, p]) => `<button class="chip ${me && me.id===id ? "me" : ""}" data-id="${esc(id)}">${esc(p.name)}<b>${(p.dates||[]).filter(d => d >= todayIso && !FULL.has(d)).length}</b></button>`).join("")
+          .map(([id, p]) => `<button class="chip ${me && me.id===id ? "me" : ""}" data-id="${esc(id)}">${esc(p.name)}<b>${(p.dates||[]).filter(d => d >= todayIso && !isFull(d)).length}</b></button>`).join("")
       : `<p class="empty">還沒有人填。在上面輸入名字就能當第一個。</p>`;
 
     if (!rows.length) {
