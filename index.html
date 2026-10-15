@@ -190,7 +190,9 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
     del(k) { try { localStorage.removeItem(k); } catch {} }
   };
 
-  let view = new Date(today.getFullYear(), today.getMonth(), 1);
+  // 月曆最早從 2026 年 12 月開始；過了 12 月就從當月開始
+  const START = new Date(Math.max(new Date(2026, 11, 1), new Date(today.getFullYear(), today.getMonth(), 1)));
+  let view = new Date(START);
   let people = {};               // id -> {name, dates[]}
   let me = store.get("freeday.me"); // {id, name}
   let myDates = new Set();
@@ -310,7 +312,7 @@ tr.top td { background: rgba(var(--heat-rgb), .08); }
   function renderCal() {
     const y = view.getFullYear(), m = view.getMonth();
     $("monthTitle").innerHTML = `${m+1} 月<small>${y}</small>`;
-    $("prev").disabled = y === today.getFullYear() && m === today.getMonth();
+    $("prev").disabled = y === START.getFullYear() && m === START.getMonth();
     const c = counts();
     const total = allEntries().length;
     const max = Math.max(1, ...[...c.values()].map(a => a.length));
