@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>哪天有空露營</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one wide wall-calendar sheet up top, ranking table beneath; name bar sticks above the calendar */
+:root {
+  --bg: #EEF2EF;
+  --sheet: #FFFFFF;
+  --ink: #18241F;
+  --muted: #5F6E67;
+  --line: #D5DDD8;
+  --accent: #1F6F55;
+  --accent-ink: #FFFFFF;
+  --mine: #E3A72F;
+  --heat-0: #F5F8F6;
+  --heat-rgb: 31, 111, 85;
+  --danger: #B5402F;
+  --f-display: "Zen Maru Gothic", "Noto Sans TC", system-ui, sans-serif;
+  --f-body: "Noto Sans TC", system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111815; --sheet: #18211D; --ink: #E4ECE7; --muted: #92A39A; --line: #2C3833;
+  --accent: #4DB38E; --accent-ink: #0D1512; --mine: #F0B947; --heat-0: #1C2622; --heat-rgb: 77, 179, 142; --danger: #E2705C;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #111815; --sheet: #18211D; --ink: #E4ECE7; --muted: #92A39A; --line: #2C3833;
+  --accent: #4DB38E; --accent-ink: #0D1512; --mine: #F0B947; --heat-0: #1C2622; --heat-rgb: 77, 179, 142; --danger: #E2705C;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 24px; }
+h1, h2 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 900; letter-spacing: .02em; line-height: 1.1; }
+h2 { font-size: 1.4rem; font-weight: 700; }
+.lede { color: var(--muted); margin: 6px 0 0; }
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; }
+.status { font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.dot.live { background: var(--accent); }
+.dot.off { background: var(--danger); }
+
+/* who bar */
+.who { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--sheet); border: 1px solid var(--line);
+  border-radius: 14px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; box-shadow: 0 6px 20px -14px rgba(0,0,0,.35); }
+.who label { font-weight: 700; font-size: .95rem; }
+.who input { font: inherit; padding: 8px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); min-width: 0; flex: 1 1 160px; max-width: 260px; }
+.who input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button { font: inherit; cursor: pointer; border-radius: 10px; border: 1.5px solid var(--line); background: var(--sheet); color: var(--ink); padding: 8px 14px; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+button.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+button.danger { color: var(--danger); border-color: var(--danger); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.who .hint { color: var(--muted); font-size: .85rem; flex: 1 1 100%; margin: 0; }
+.who .me-tag { font-family: var(--f-display); font-weight: 700; font-size: 1.1rem; }
+.who .me-tag b { color: var(--accent); }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .9rem; }
+
+/* calendar */
+.sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.month { font-family: var(--f-display); font-weight: 900; font-size: clamp(1.6rem, 5vw, 2.4rem); display: flex; align-items: baseline; gap: 10px; }
+.month small { font-family: var(--f-num); font-size: .9rem; color: var(--muted); font-weight: 500; }
+.nav { display: flex; gap: 6px; }
+.nav button { width: 44px; height: 44px; padding: 0; font-size: 1.2rem; }
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.dow { text-align: center; font-size: .8rem; font-weight: 700; color: var(--muted); letter-spacing: .1em; padding-bottom: 2px; }
+.dow.we { color: var(--danger); }
+.day { position: relative; aspect-ratio: 1 / .9; max-width: 100%; border-radius: 12px; border: 1.5px solid var(--line); background: var(--heat-0);
+  padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; color: var(--ink); transition: transform .08s; }
+.day:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--accent); }
+.day .n { font-family: var(--f-num); font-weight: 600; font-size: clamp(.9rem, 2.6vw, 1.35rem); line-height: 1; }
+.day.we .n { color: var(--danger); }
+.day .c { font-size: clamp(.65rem, 1.8vw, .8rem); font-weight: 700; align-self: flex-end; font-variant-numeric: tabular-nums; }
+.day.hot .n, .day.hot .c { color: #fff; }
+.day.today { border-color: var(--ink); }
+.day.blank { visibility: hidden; }
+.day:disabled { opacity: .35; cursor: default; }
+.day.mine { border-color: var(--mine); border-width: 3px; }
+.day.mine::after { content: "✓"; position: absolute; top: 4px; right: 7px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--mine); color: #1b1300; font-size: .75rem; font-weight: 900; display: grid; place-items: center; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .8rem; color: var(--muted); align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--line); display: inline-block; }
+.ramp { width: 90px; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--heat-0), rgba(var(--heat-rgb), 1)); border: 1px solid var(--line); }
+@media (max-width: 520px) {
+  .sheet { padding: 12px; }
+  .grid { gap: 3px; }
+  .day { padding: 4px 5px; border-radius: 8px; aspect-ratio: 1 / 1.05; }
+  .day.mine::after { width: 14px; height: 14px; font-size: .6rem; top: 2px; right: 3px; }
+}
+
+/* stats */
+.stats { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 760px) { .stats { grid-template-columns: minmax(0, 1fr); } }
+.best { background: var(--accent); color: var(--accent-ink); border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
+.best .lbl { font-size: .8rem; letter-spacing: .12em; font-weight: 700; opacity: .85; }
+.best .big { font-family: var(--f-display); font-weight: 900; font-size: clamp(1.5rem, 4.5vw, 2.1rem); line-height: 1.2; }
+.best .sub { font-size: .9rem; opacity: .9; }
+.table-box { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+th { text-align: left; font-size: .75rem; letter-spacing: .1em; color: var(--muted); font-weight: 700; padding: 8px 10px; border-bottom: 1.5px solid var(--line); white-space: nowrap; }
+td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.rank { font-family: var(--f-num); color: var(--muted); width: 2.5em; }
+td.date { font-family: var(--f-num); font-weight: 600; white-space: nowrap; }
+td.date em { font-style: normal; font-family: var(--f-body); color: var(--muted); font-weight: 500; margin-left: 4px; }
+td.cnt { width: 34%; min-width: 120px; }
+.bar { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.bar i { display: block; height: 10px; border-radius: 5px; background: var(--accent); min-width: 4px; }
+.all { font-size: .7rem; font-weight: 700; color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+td.names { color: var(--muted); font-size: .85rem; }
+tr.top td { background: rgba(var(--heat-rgb), .08); }
+.people { display: flex; flex-direction: column; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border-radius: 999px; padding: 5px 12px; font-size: .88rem; border: 1.5px solid var(--line); background: var(--sheet); }
+.chip b { font-family: var(--f-num); font-weight: 600; color: var(--muted); margin-left: 6px; }
+.chip.me { border-color: var(--mine); }
+.empty { color: var(--muted); padding: 18px 4px; margin: 0; }
+.note { font-size: .82rem; color: var(--muted); margin: 0; }
+@media (prefers-reduced-motion: reduce) { .day { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>哪天有空露營？</h1>
+      <p class="lede">輸入名字，點月曆上你有空的日期。不用註冊，大家的勾選會即時合在一起。</p>
+    </div>
+    <div class="status" id="status"><span class="dot" id="dot"></span><span id="statusText">連線中…</span></div>
+  </header>
+
+  <section class="who" id="who" aria-label="你是誰"></section>
+
+  <section class="sheet" aria-label="月曆">
+    <div class="cal-head">
+      <div class="month" id="monthTitle"></div>
+      <div class="nav">
+        <button id="prev" aria-label="上個月">‹</button>
+        <button id="next" aria-label="下個月">›</button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="legend">
+      <span><i class="ramp"></i>顏色越深＝越多人有空</span>
+      <span><i class="sw" style="border-color:var(--mine);border-width:3px"></i>你勾的日子</span>
+      <span><i class="sw" style="border-color:var(--ink)"></i>今天</span>
+    </div>
+  </section>
+
+  <section class="stats" aria-label="統計">
+    <div class="sheet">
+      <h2>哪天最多人有空</h2>
+      <div id="best"></div>
+      <div class="table-box"><table id="rank"></table></div>
+    </div>
+    <div class="sheet people">
+      <h2>已填的人 <span id="pcount" style="font-family:var(--f-num);color:var(--muted);font-size:1rem"></span></h2>
+      <div class="chips" id="chips"></div>
+      <p class="note">點別人的名字可以切換成他來修改（例如換了電腦或幫朋友填）。</p>
+    </div>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script>
+(() => {
+  const API = (window.FREEDAY_API || "").trim();
+  const POLL_MS = 8000;
+  const WD = ["日","一","二","三","四","五","六"];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const todayIso = iso(today);
+  const fromIso = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} }
+  };
+
+  let view = new Date(today.getFullYear(), today.getMonth(), 1);
+  let people = {};               // id -> {name, dates[]}
+  let me = store.get("freeday.me"); // {id, name}
+  let myDates = new Set();
+  let mode = API.startsWith("https://") ? "connecting" : "noconfig", readOnly = mode === "noconfig";
+  let saveTimer = null, saving = false, dirty = false, confirmDel = false;
+
+  if (me && !me.id) me = null;
+  if (me) myDates = new Set(store.get("freeday.local." + me.id) || []);
+
+  function setStatus(kind, text) { $("dot").className = "dot " + kind; $("statusText").textContent = text; }
+
+  function allEntries() {
+    const out = { ...people };
+    if (me) out[me.id] = { name: me.name, dates: [...myDates] };
+    return Object.entries(out).filter(([, p]) => p && p.name);
+  }
+  function counts() {
+    const m = new Map();
+    for (const [id, p] of allEntries()) for (const d of (p.dates || [])) {
+      if (d < todayIso) continue;
+      if (!m.has(d)) m.set(d, []);
+      m.get(d).push(p.name);
+    }
+    return m;
+  }
+
+  // ---------- who bar ----------
+  function renderWho() {
+    const el = $("who");
+    if (mode === "noconfig") {
+      el.innerHTML = `<span class="me-tag">還沒接上試算表</span>
+        <p class="hint">請在 config.js 填入 Apps Script 部署後的網址（https://script.google.com/macros/s/…/exec），存檔後重新整理。</p>`;
+      return;
+    }
+    if (!me) {
+      el.innerHTML = `<label for="nameInput">你的名字</label>
+        <input id="nameInput" maxlength="20" placeholder="例如：小明" autocomplete="off">
+        <button class="primary" id="startBtn">開始勾選</button>
+        <p class="hint">${readOnly ? "你目前只能檢視，無法寫入。" : "名字跟之前填過的一樣，就會接著改那一份。"}</p>`;
+      const go = () => {
+        const name = $("nameInput").value.trim().slice(0, 20);
+        if (!name) { $("nameInput").focus(); return; }
+        const hit = Object.entries(people).find(([, p]) => p.name.trim().toLowerCase() === name.toLowerCase());
+        if (hit) adopt(hit[0], hit[1].name, hit[1].dates);
+        else adopt(Math.random().toString(36).slice(2, 10) + Date.now().toString(36), name, [], true);
+      };
+      $("startBtn").onclick = go;
+      $("nameInput").onkeydown = e => { if (e.key === "Enter") go(); };
+      $("startBtn").disabled = readOnly;
+      return;
+    }
+    const n = myDates.size;
+    el.innerHTML = `<span class="me-tag">你是 <b>${esc(me.name)}</b></span>
+      <span class="note">已勾 ${n} 天${saving ? "・儲存中…" : dirty ? "・待儲存" : mode === "live" ? "・已儲存" : ""}</span>
+      <span style="flex:1"></span>
+      ${confirmDel
+        ? `<span class="confirm">確定刪除 ${esc(me.name)} 的所有勾選？<button class="danger" id="delYes">刪除</button><button id="delNo">取消</button></span>`
+        : `<button class="ghost" id="clearBtn" ${n ? "" : "disabled"}>清除我的勾選</button>
+           <button class="ghost" id="delBtn">刪除我</button>
+           <button id="switchBtn">換人</button>`}
+      <p class="hint">點月曆上的日期就能勾選或取消，會自動儲存。</p>`;
+    if (confirmDel) {
+      $("delYes").onclick = removeMe;
+      $("delNo").onclick = () => { confirmDel = false; renderWho(); };
+    } else {
+      $("clearBtn").onclick = () => { myDates.clear(); queueSave(); render(); };
+      $("delBtn").onclick = () => { confirmDel = true; renderWho(); };
+      $("switchBtn").onclick = () => { flush(); me = null; myDates = new Set(); store.del("freeday.me"); render(); };
+    }
+  }
+
+  function adopt(id, name, dates, isNew) {
+    flush();
+    me = { id, name };
+    myDates = new Set(dates || []);
+    store.set("freeday.me", me);
+    confirmDel = false;
+    if (isNew) queueSave(0);
+    render();
+  }
+
+  async function removeMe() {
+    const id = me.id;
+    clearTimeout(saveTimer); dirty = false;
+    me = null; myDates = new Set(); confirmDel = false;
+    store.del("freeday.me"); store.del("freeday.local." + id);
+    delete people[id];
+    render();
+    try { applyRows(await call({ action: "delete", id })); } catch (e) { setStatus("off", "刪除失敗，請重新整理再試"); }
+  }
+
+  // ---------- saving ----------
+  function queueSave(delay = 700) {
+    if (!me) return;
+    dirty = true;
+    store.set("freeday.local." + me.id, [...myDates]);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, delay);
+  }
+  function flush() { if (dirty) { clearTimeout(saveTimer); save(); } }
+  async function save() {
+    if (!me || mode !== "live" || readOnly) return;
+    if (saving) { saveTimer = setTimeout(save, 400); return; }
+    const id = me.id, body = { action: "save", id, name: me.name, dates: [...myDates].sort() };
+    saving = true; dirty = false; renderWho();
+    try {
+      applyRows(await call(body));
+      setStatus("live", "已連上試算表");
+    } catch (e) {
+      dirty = true; setStatus("off", "儲存失敗，稍後會再試");
+      saveTimer = setTimeout(save, 3000 + Math.random()*2000);
+    }
+    saving = false; render();
+  }
+
+  // ---------- calendar ----------
+  function renderCal() {
+    const y = view.getFullYear(), m = view.getMonth();
+    $("monthTitle").innerHTML = `${m+1} 月<small>${y}</small>`;
+    $("prev").disabled = y === today.getFullYear() && m === today.getMonth();
+    const c = counts();
+    const total = allEntries().length;
+    const max = Math.max(1, ...[...c.values()].map(a => a.length));
+    let h = WD.map((w, i) => `<div class="dow ${i===0||i===6?"we":""}">${w}</div>`).join("");
+    const first = new Date(y, m, 1).getDay();
+    const days = new Date(y, m+1, 0).getDate();
+    for (let i = 0; i < first; i++) h += `<div class="day blank"></div>`;
+    for (let d = 1; d <= days; d++) {
+      const dt = new Date(y, m, d), key = iso(dt), past = key < todayIso;
+      const n = (c.get(key) || []).length;
+      const a = n ? 0.18 + 0.82 * (n / max) : 0;
+      const mine = myDates.has(key);
+      const cls = ["day", dt.getDay()===0||dt.getDay()===6 ? "we" : "", key===todayIso?"today":"", mine?"mine":"", a > .55 ? "hot" : ""].join(" ");
+      const style = n ? `style="background:rgba(var(--heat-rgb),${a.toFixed(2)})"` : "";
+      const label = `${m+1}月${d}日，${n} 人有空${mine ? "，你已勾選" : ""}`;
+      h += `<button class="${cls}" data-d="${key}" ${style} ${past?"disabled":""} aria-pressed="${mine}" aria-label="${label}">
+        <span class="n">${d}</span><span class="c">${n ? n + (total ? "/" + total : "") : ""}</span></button>`;
+    }
+    $("grid").innerHTML = h;
+  }
+  $("grid").addEventListener("click", e => {
+    const b = e.target.closest("button.day");
+    if (!b || b.disabled || mode === "noconfig") return;
+    if (!me) { const i = $("nameInput"); if (i) { i.focus(); i.placeholder = "先輸入名字再勾日期"; } return; }
+    if (readOnly) return;
+    const k = b.dataset.d;
+    myDates.has(k) ? myDates.delete(k) : myDates.add(k);
+    queueSave(); render();
+  });
+  $("prev").onclick = () => { view = new Date(view.getFullYear(), view.getMonth()-1, 1); renderCal(); };
+  $("next").onclick = () => { view = new Date(view.getFullYear(), view.getMonth()+1, 1); renderCal(); };
+
+  // ---------- stats ----------
+  function fmt(key) { const d = fromIso(key); return `${d.getMonth()+1}/${d.getDate()}<em>（${WD[d.getDay()]}）</em>`; }
+  function renderStats() {
+    const entries = allEntries();
+    const total = entries.length;
+    const rows = [...counts().entries()].sort((a, b) => b[1].length - a[1].length || (a[0] < b[0] ? -1 : 1));
+    $("pcount").textContent = total ? `${total} 人` : "";
+    $("chips").innerHTML = total
+      ? entries.sort((a, b) => a[1].name.localeCompare(b[1].name, "zh-Hant"))
+          .map(([id, p]) => `<button class="chip ${me && me.id===id ? "me" : ""}" data-id="${esc(id)}">${esc(p.name)}<b>${(p.dates||[]).filter(d => d >= todayIso).length}</b></button>`).join("")
+      : `<p class="empty">還沒有人填。在上面輸入名字就能當第一個。</p>`;
+
+    if (!rows.length) {
+      $("best").innerHTML = "";
+      $("rank").innerHTML = `<tr><td class="empty">有人勾了日期後，這裡會排出最多人有空的日子。</td></tr>`;
+      return;
+    }
+    const topN = rows[0][1].length;
+    const ties = rows.filter(r => r[1].length === topN);
+    $("best").innerHTML = `<div class="best"><span class="lbl">目前最佳</span>
+      <span class="big">${ties.slice(0, 3).map(r => fmt(r[0]).replace(/<em>|<\/em>/g, "")).join("、")}${ties.length > 3 ? ` 等 ${ties.length} 天` : ""}</span>
+      <span class="sub">${topN} / ${total} 人有空${topN === total ? "，全員到齊" : ""}</span></div>`;
+    const max = topN;
+    $("rank").innerHTML = `<thead><tr><th>#</th><th>日期</th><th>人數</th><th>誰有空</th></tr></thead><tbody>` +
+      rows.slice(0, 15).map(([k, names], i) => `<tr class="${names.length===topN?"top":""}">
+        <td class="rank">${i+1}</td><td class="date">${fmt(k)}</td>
+        <td class="cnt"><div class="bar"><i style="width:${Math.round(names.length/max*100)}%"></i>${names.length}${names.length===total && total>1 ? `<span class="all">全員</span>` : ""}</div></td>
+        <td class="names">${names.map(esc).join("、")}</td></tr>`).join("") + `</tbody>`;
+  }
+  $("chips").addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    const id = b.dataset.id; if (me && me.id === id) return;
+    const p = people[id]; if (p) adopt(id, p.name, p.dates);
+  });
+
+  function render() { renderWho(); renderCal(); renderStats(); }
+  render();
+
+  // ---------- shared data (Google Sheets via Apps Script) ----------
+  // POST uses text/plain so the browser skips the CORS preflight Apps Script can't answer.
+  async function call(payload) {
+    const res = payload
+      ? await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) })
+      : await fetch(API + (API.includes("?") ? "&" : "?") + "t=" + Date.now());
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || "unknown");
+    return json.rows;
+  }
+  function applyRows(rows) {
+    const next = {};
+    for (const r of rows || []) {
+      if (r && typeof r.id === "string" && typeof r.name === "string" && r.name)
+        next[r.id] = { name: r.name.slice(0, 20), dates: Array.isArray(r.dates) ? r.dates.filter(x => typeof x === "string") : [] };
+    }
+    people = next;
+    if (me && !dirty && !saving && people[me.id]) myDates = new Set(people[me.id].dates);
+  }
+  async function refresh() {
+    if (mode === "noconfig" || saving || document.hidden) return;
+    try {
+      applyRows(await call());
+      const first = mode !== "live";
+      mode = "live";
+      setStatus("live", "已連上試算表・每 " + POLL_MS / 1000 + " 秒更新");
+      render();
+      if (first && me && dirty) save();
+    } catch (e) {
+      setStatus("off", mode === "live" ? "暫時連不上試算表，稍後會再試" : "連不上試算表，請檢查 config.js 的網址和部署權限");
+    }
+  }
+  if (mode === "noconfig") setStatus("off", "尚未設定試算表網址");
+  else {
+    refresh();
+    setInterval(refresh, POLL_MS);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+  }
+  window.addEventListener("pagehide", flush);
+})();
+</script>
+</body>
+</html>
